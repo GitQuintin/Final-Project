@@ -138,14 +138,14 @@ Returns a true if for a given hand, `h` all cards in the Hand are the same suit.
 Added if statement for Straight Hand strategy project. Checks if the newly drawn card is the suit as the current Small Straight. 
 """
 function isOneSuit(h::Hand)
-    if length(h.cards) == 6 #Used for Straight Hand strategy project. 
-        local s = map(c->c.suit,h.cards)
-        if s[1] == s[2] == s[3] == s[4] == s[6]
-            return true
-        else
-            return false
-        end
-    end
+    # if length(h.cards) == 6 #Used for Straight Hand strategy project. 
+    #     local s = map(c->c.suit,h.cards)
+    #     if s[1] == s[2] == s[3] == s[4] == s[6]
+    #         return true
+    #     else
+    #         return false
+    #     end
+    # end
     local s = map(c->c.suit,h.cards)
     s[1]==s[2]==s[3]==s[4]==s[5]
 end
@@ -158,16 +158,16 @@ Returns true if for a given hand, `h` all cards in the Hand are sequential.  It 
 Added if statement for Straight Hand strategy project. Correctly sorts small straight if unorganzied and then checks if newly drawn card fits the Straight. 
 """
 function isRun(h::Hand)
-    if length(h.cards) == 6
-        local r = sort(map(c->c.rank,h.cards[1:4])) #in case the cards are out of order in the small straight, but don't want to include the unwanted card
-        local r2 = map(c->c.rank,h.cards[5:6])
-        append!(r,r2)
-        if r[1] == r[6]+1 || r[4] == r[6]-1
-            return true
-        elseif r[1] == 1 && r[2] == 11 && r[3] == 12 && r[4] == 13 && r[6] == 10  #ace high run
-            return true
-        end
-    end
+    # if length(h.cards) == 6
+    #     local r = sort(map(c->c.rank,h.cards[1:4])) #in case the cards are out of order in the small straight, but don't want to include the unwanted card
+    #     local r2 = map(c->c.rank,h.cards[5:6])
+    #     append!(r,r2)
+    #     if r[1] == r[6]+1 || r[4] == r[6]-1
+    #         return true
+    #     elseif r[1] == 1 && r[2] == 11 && r[3] == 12 && r[4] == 13 && r[6] == 10  #ace high run
+    #         return true
+    #     end
+    # end
     local r = sort(map(c->c.rank,h.cards))
     r[2]==r[1]+1 && r[3]==r[2]+1 && r[4]==r[3]+1 && r[5]==r[4]+1 ||
     r[1]==1 && r[2]==10 && r[3]==11 && r[4]==12 && r[5]==13 ## ace high run
