@@ -1,10 +1,11 @@
 module PlayingCards
 
-import Base.show
+import Base.show, Base.==
 
 import Random: shuffle!
 
-export Card, Hand, isFullHouse, isRoyalFlush, runTrials, runTrials, isTwoPair
+export Card, Hand, isFullHouse, isOneSuit, isRun, isRoyalFlush, isTwoPair, isStraightFlush, isStraight, isFlush, isFourKind, isThreeKind
+export isSmallRun, isSmallStraight, ReorderSmallStraight
 
 ranks = ['A','2','3','4','5','6','7','8','9','T','J','Q','K']
 suits = ['\u2660','\u2661','\u2662','\u2663']
@@ -133,21 +134,63 @@ end
     isOneSuit(h::Hand)
 
 Returns a true if for a given hand, `h` all cards in the Hand are the same suit.  It returns false otherwise.
+
+Added if statement for Straight Hand strategy project. Checks if the newly drawn card is the suit as the current Small Straight. 
 """
 function isOneSuit(h::Hand)
-  local s = map(c->c.suit,h.cards)
-  s[1]==s[2]==s[3]==s[4]==s[5]
+    if length(h.cards) == 6 #Used for Straight Hand strategy project. 
+        local s = map(c->c.suit,h.cards)
+        if s[1] == s[2] == s[3] == s[4] == s[6]
+            return true
+        else
+            return false
+        end
+    end
+    local s = map(c->c.suit,h.cards)
+    s[1]==s[2]==s[3]==s[4]==s[5]
 end
 
 """
     isRun(h::Hand)
 
-Returns true if for a given hand, `h` all cards in the Hand are the same suit.  It returns false otherwise.
+Returns true if for a given hand, `h` all cards in the Hand are sequential.  It returns false otherwise.
+
+Added if statement for Straight Hand strategy project. Correctly sorts small straight if unorganzied and then checks if newly drawn card fits the Straight. 
 """
 function isRun(h::Hand)
-  local r = sort(map(c->c.rank,h.cards))
-  r[2]==r[1]+1 && r[3]==r[2]+1 && r[4]==r[3]+1 && r[5]==r[4]+1 ||
-  r[1]==1 && r[2]==10 && r[3]==11 && r[4]==12 && r[5]==13 ## ace high run
+    if length(h.cards) == 6
+        local r = sort(map(c->c.rank,h.cards[1:4])) #in case the cards are out of order in the small straight, but don't want to include the unwanted card
+        local r2 = map(c->c.rank,h.cards[5:6])
+        append!(r,r2)
+        if r[1] == r[6]+1 || r[4] == r[6]-1
+            return true
+        elseif r[1] == 1 && r[2] == 11 && r[3] == 12 && r[4] == 13 && r[6] == 10  #ace high run
+            return true
+        end
+    end
+    local r = sort(map(c->c.rank,h.cards))
+    r[2]==r[1]+1 && r[3]==r[2]+1 && r[4]==r[3]+1 && r[5]==r[4]+1 ||
+    r[1]==1 && r[2]==10 && r[3]==11 && r[4]==12 && r[5]==13 ## ace high run
+end
+
+"""
+    isSmallRun(h:Hand)
+
+Returns a true if for a given hand, 'h' all cards in the Hand are sequential, except for one. It returns false otherwise.
+This will be used for the Straight Hand strategy.
+"""
+function isSmallRun(h::Hand)
+    local r = unique(sort(map(c->c.rank,h.cards))) #using unique() to remove any duplicate ranked cards
+    if (length(r) == 4)
+        r[2]==r[1]+1 && r[3]==r[2]+1 && r[4]==r[3]+1 || 
+        r[1]==1 && r[2]==11 && r[3]==12 && r[4]==13 ## ace high run
+    elseif (length(r) == 5)
+        r[3]==r[2]+1 && r[4]==r[3]+1 && r[5]==r[4]+1 || #lower ranked card not in straight
+        r[2]==r[1]+1 && r[3]==r[2]+1 && r[4]==r[3]+1 || #higher ranked card not in straight
+        r[1]==1 && !(r[2]==10) && r[3]==11 && r[4]==12 && r[5]==13 ## ace high run with card ranked between Ace and Jack
+    else
+        return false
+    end
 end
 
 """
@@ -160,6 +203,11 @@ function isRoyalFlush(h::Hand)
   r[1]==1 && r[2]==10 && r[3]==11 && r[4]==12 && r[5]==13 && isOneSuit(h)
 end
 
+"""
+    isTwoPair(h::Hand)
+
+Returns true if given hand 'h' has a two pairs, otherwise false.
+"""
 function isTwoPair(h::Hand)
   r = sort(map(c->c.rank, h.cards))
   r[1] == r[2] && r[3] == r[4] && r[5] != r[1] && r[5] != r[3] && r[2] != r[3] ||
@@ -167,5 +215,100 @@ function isTwoPair(h::Hand)
   r[1] == r[2] && r[4] == r[5] && r[3] != r[2] && r[3] != r[4] && r[1] != r[5]
 end
 
+"""
+    isStraightFlush(h:Hand)
+
+Returns true if given hand 'h' is a straight flush, otherwise false. 
+"""
+function isStraightFlush(h::Hand)
+    local r = sort(map(c->c.rank,h.cards))
+    isRun(h) && isOneSuit(h) && !(r[1]==1 && r[2]==10 && r[3]==11 && r[4]==12 && r[5]==13)
+end
+
+"""
+    isStraight(h::Hand)
+
+Returns true if given hand 'h' is a straight, otherwise false.
+"""
+function isStraight(h::Hand)
+    isRun(h) && !isOneSuit(h)
+end
+
+"""
+    isSmallStraight(h::Hand)
+
+Returns true if given hand 'h' is a small straight, otherwise false.
+Used for Straight Hand strategy. 
+"""
+function isSmallStraight(h::Hand)
+    isSmallRun(h) && !isStraight(h) && !isStraightFlush(h) && !isRoyalFlush(h)
+end
+
+"""
+    ReorderSmallStraight(h::Hand)
+
+Returns Hand h with small straight at the beginning of the hand and the unwanted card at the end of the hand.
+"""
+function ReorderSmallStraight(h::Hand)
+    if !isSmallStraight(h)
+        return false
+    elseif isSmallRun(Hand(h.cards[1:4])) #if the Small Straight is in the beginning of the hand
+        return h
+    elseif isSmallRun(Hand(h.cards[2:5])) #if the Small Straight is at the end of the hand
+        local x = setdiff(h.cards, h.cards[2:5])
+        reordered = Hand(vcat(h.cards[2:5],x))
+        return reordered #moves the unwanted card to the end
+    elseif isSmallRun(Hand(getindex(h.cards,[1,3,4,5]))) #these elseifs cover if the unwanted card is in the middle of the hand abd moves it to the end
+        local x = setdiff(h.cards,getindex(h.cards,[1,3,4,5]))
+        local reordered = Hand(vcat(getindex(h.cards,[1,3,4,5]),x))
+        return reordered
+    elseif isSmallRun(Hand(getindex(h.cards,[1,2,4,5])))
+        local x = setdiff(h.cards,getindex(h.cards,[1,2,4,5]))
+        local reordered = Hand(vcat(getindex(h.cards,[1,2,4,5]),x))
+        return reordered
+    elseif isSmallRun(Hand(getindex(h.cards,[1,2,3,5])))
+        local x = setdiff(h.cards,getindex(h.cards,[1,2,3,5]))
+        local reordered = Hand(vcat(getindex(h.cards,[1,2,3,5]),x))
+        return reordered
+    else
+        return false
+    end
+end
+
+"""
+    isFlush(h::Hand)
+
+Returns true if given hand 'h' is a flush (cards are all the same suit and not sequential), otherwise false. 
+"""
+function isFlush(h::Hand)
+    isOneSuit(h) && !isRun(h)
+end
+
+"""
+    isFourKind(h::Hand)
+
+Returns true if given hand 'h' is four of a kind, otherwise false. 
+"""
+function isFourKind(h::Hand)
+    local r = sort(map(c->c.rank,h.cards))
+    r[1] == r[2] == r[3] == r[4] != r[5] ||
+    r[1] != r[2] == r[3] == r[4] == r[5]
+end
+
+"""
+    isThreeKind(h::Hand)
+
+Returns true if given hand 'h' is three of a kind, otherwise false. 
+"""
+function isThreeKind(h::Hand)
+    local r = sort(map(c->c.rank,h.cards))
+    r[1] == r[2] == r[3] && r[4] != r[5] && r[3] != r[4] ||
+    r[1] != r[2] && r[3] == r[4] == r[5] && r[3] != r[2] ||
+    r[2] == r[3] == r[4] && r[2] != r[1] && r[4] != r[5]
+end
+
+Base.:(==)(c1::Card,c2::Card) = c1.rank == c2.rank && c1.suit == c2.suit
+
+Base.:(==)(h1::Hand,h2::Hand) = h1.cards == h2.cards
 
 end #module PlayingCards
