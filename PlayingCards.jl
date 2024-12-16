@@ -5,7 +5,7 @@ import Base.show, Base.==
 import Random: shuffle!
 
 export Card, Hand, isFullHouse, isOneSuit, isRun, isRoyalFlush, isTwoPair, isStraightFlush, isStraight, isFlush, isFourKind, isThreeKind
-export isSmallRun, isSmallStraight, ReorderSmallStraight
+export isSmallRun, isSmallStraight, ReorderSmallStraight, isSmallOneSuit, isSmallFlush, ReorderSmallFlush
 
 ranks = ['A','2','3','4','5','6','7','8','9','T','J','Q','K']
 suits = ['\u2660','\u2661','\u2662','\u2663']
@@ -134,40 +134,32 @@ end
     isOneSuit(h::Hand)
 
 Returns a true if for a given hand, `h` all cards in the Hand are the same suit.  It returns false otherwise.
-
-Added if statement for Straight Hand strategy project. Checks if the newly drawn card is the suit as the current Small Straight. 
 """
 function isOneSuit(h::Hand)
-    # if length(h.cards) == 6 #Used for Straight Hand strategy project. 
-    #     local s = map(c->c.suit,h.cards)
-    #     if s[1] == s[2] == s[3] == s[4] == s[6]
-    #         return true
-    #     else
-    #         return false
-    #     end
-    # end
     local s = map(c->c.suit,h.cards)
     s[1]==s[2]==s[3]==s[4]==s[5]
 end
 
 """
+    isSmallOneSuit(h::Hand)
+
+Returns a true if for a given hand, `h` all but one card in the Hand is the same suit. It returns false otherwise.
+This will be used for the Flush Hand strategy.
+"""
+function isSmallOneSuit(h::Hand)
+    local s = sort(map(c->c.suit,h.cards))
+    if (length(s) == 4)
+        s[1]==s[2]==s[3]==s[4]
+    else
+        s[1]==s[2]==s[3]==s[4] || s[2]==s[3]==s[4]==s[5]
+    end
+end
+"""
     isRun(h::Hand)
 
 Returns true if for a given hand, `h` all cards in the Hand are sequential.  It returns false otherwise.
-
-Added if statement for Straight Hand strategy project. Correctly sorts small straight if unorganzied and then checks if newly drawn card fits the Straight. 
 """
 function isRun(h::Hand)
-    # if length(h.cards) == 6
-    #     local r = sort(map(c->c.rank,h.cards[1:4])) #in case the cards are out of order in the small straight, but don't want to include the unwanted card
-    #     local r2 = map(c->c.rank,h.cards[5:6])
-    #     append!(r,r2)
-    #     if r[1] == r[6]+1 || r[4] == r[6]-1
-    #         return true
-    #     elseif r[1] == 1 && r[2] == 11 && r[3] == 12 && r[4] == 13 && r[6] == 10  #ace high run
-    #         return true
-    #     end
-    # end
     local r = sort(map(c->c.rank,h.cards))
     r[2]==r[1]+1 && r[3]==r[2]+1 && r[4]==r[3]+1 && r[5]==r[4]+1 ||
     r[1]==1 && r[2]==10 && r[3]==11 && r[4]==12 && r[5]==13 ## ace high run
@@ -283,6 +275,47 @@ Returns true if given hand 'h' is a flush (cards are all the same suit and not s
 function isFlush(h::Hand)
     isOneSuit(h) && !isRun(h)
 end
+
+"""
+    isSmallFlush(h::Hand)
+
+Returns true if given hand 'h' is a "small flush" (4 cards are of the same suit), otherwise false. 
+"""
+function isSmallFlush(h::Hand)
+    isSmallOneSuit(h) && !isFlush(h) && !isStraightFlush(h) && !isRoyalFlush(h)
+end
+
+"""
+    ReorderSmallStraight(h::Hand)
+
+Returns Hand h with "small flush" at the beginning of the hand and the unwanted card at the end of the hand.
+"""
+function ReorderSmallFlush(h::Hand)
+    if !isSmallFlush(h)
+        return false
+    elseif isSmallOneSuit(Hand(h.cards[1:4])) #if the Small Straight is in the beginning of the hand
+        return h
+    elseif isSmallOneSuit(Hand(h.cards[2:5])) #if the Small Straight is at the end of the hand
+        local x = setdiff(h.cards, h.cards[2:5])
+        reordered = Hand(vcat(h.cards[2:5],x))
+        return reordered #moves the unwanted card to the end
+    elseif isSmallOneSuit(Hand(getindex(h.cards,[1,3,4,5]))) #these elseifs cover if the unwanted card is in the middle of the hand abd moves it to the end
+        local x = setdiff(h.cards,getindex(h.cards,[1,3,4,5]))
+        local reordered = Hand(vcat(getindex(h.cards,[1,3,4,5]),x))
+        return reordered
+    elseif isSmallOneSuit(Hand(getindex(h.cards,[1,2,4,5])))
+        local x = setdiff(h.cards,getindex(h.cards,[1,2,4,5]))
+        local reordered = Hand(vcat(getindex(h.cards,[1,2,4,5]),x))
+        return reordered
+    elseif isSmallOneSuit(Hand(getindex(h.cards,[1,2,3,5])))
+        local x = setdiff(h.cards,getindex(h.cards,[1,2,3,5]))
+        local reordered = Hand(vcat(getindex(h.cards,[1,2,3,5]),x))
+        return reordered
+    else
+        return false
+    end
+end
+
 
 """
     isFourKind(h::Hand)
